@@ -5,6 +5,7 @@ import {
   signInAnonymously,
   signOut,
   onAuthStateChanged,
+  updateProfile,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   collection,
@@ -21,6 +22,12 @@ let auth;
 let db;
 let ownerAuthUid;
 let unsubMsgs = null;
+
+function sanitizeDisplayName(raw) {
+  const s = (raw || "").trim();
+  if (!s) return "";
+  return s.length > 80 ? s.slice(0, 80) : s;
+}
 
 function showConfigError(code) {
   el("status").className = "status error";
@@ -61,6 +68,13 @@ function detachMessages() {
   }
 }
 
+function visitorDisplayLabel() {
+  const u = auth.currentUser;
+  if (!u) return "Bạn";
+  const n = (u.displayName || "").trim();
+  return n || "Bạn";
+}
+
 function renderMessageList(snap) {
   const box = el("messages");
   box.innerHTML = "";
@@ -82,7 +96,7 @@ function renderMessageList(snap) {
     div.textContent = m.text || "";
     const meta = document.createElement("div");
     meta.className = "msg-meta";
-    const who = sender === "owner" ? "Chủ trang" : "Bạn";
+    const who = sender === "owner" ? "Chủ trang" : visitorDisplayLabel();
     meta.textContent = who + " · " + (formatTime(m.createdAt) || "—");
     div.appendChild(meta);
     box.appendChild(div);
@@ -104,11 +118,29 @@ function attachMessages(user) {
   );
 }
 
+async function persistVisitorName(user, rawName) {
+  const name = sanitizeDisplayName(rawName);
+  if (!name) return;
+  await updateProfile(user, { displayName: name });
+  const inboxRef = doc(db, "owners", ownerAuthUid, "chats", user.uid);
+  await setDoc(
+    inboxRef,
+    {
+      visitorName: name,
+      updatedAt: serverTimestamp(),
+      preview: name.slice(0, 120),
+    },
+    { merge: true }
+  );
+}
+
 function updateUserLabel(user) {
   const anon = user.isAnonymous;
+  const dn = (user.displayName || "").trim();
+  const namePart = dn ? ` · Tên: ${dn}` : "";
   el("user-label").textContent = anon
-    ? "Ẩn danh — lịch sử có thể mất nếu xóa dữ liệu trình duyệt"
-    : (user.email || "Tài khoản") + " — lịch sử được lưu theo tài khoản";
+    ? "Ẩn danh — lịch sử theo trình duyệt" + namePart
+    : (user.email || "Tài khoản") + " — lịch sử theo email" + namePart;
   el("role-badge").textContent = anon ? "Ẩn danh" : "Đã đăng nhập";
 }
 
@@ -123,7 +155,7 @@ async function main() {
   showAuthPanel(true);
   el("status").className = "status";
   el("status").textContent =
-    "Đăng ký / đăng nhập email để lưu lịch sử; hoặc chat ẩn danh (mỗi trình duyệt một hội thoại riêng).";
+    "The North Face Chat — đăng ký / đăng nhập email để lưu lịch sử; có thể nhập tên để chủ trang nhận diện bạn.";
   el("send").disabled = true;
   el("input").disabled = true;
 
@@ -133,6 +165,9 @@ async function main() {
     el("btn-anon").disabled = busy;
     el("auth-email").disabled = busy;
     el("auth-password").disabled = busy;
+    el("auth-displayname").disabled = busy;
+    el("btn-save-name").disabled = busy;
+    el("chat-displayname").disabled = busy;
     if (msg != null) {
       el("status").className = busy ? "status" : el("status").className;
       el("status").textContent = msg;
@@ -193,6 +228,30 @@ async function main() {
 
   el("btn-signout").addEventListener("click", () => signOut(auth));
 
+  el("btn-save-name").addEventListener("click", async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    const raw = el("chat-displayname").value;
+    const name = sanitizeDisplayName(raw);
+    if (!name) {
+      el("status").className = "status error";
+      el("status").textContent = "Nhập tên (1–80 ký tự) rồi bấm Lưu tên.";
+      return;
+    }
+    el("btn-save-name").disabled = true;
+    try {
+      await persistVisitorName(user, name);
+      updateUserLabel(user);
+      el("status").className = "status";
+      el("status").textContent = "Đã lưu tên hiển thị.";
+    } catch (e) {
+      el("status").className = "status error";
+      el("status").textContent = "Không lưu được tên: " + e.message;
+    } finally {
+      el("btn-save-name").disabled = false;
+    }
+  });
+
   el("send").addEventListener("click", async () => {
     const text = el("input").value.trim();
     if (!text) return;
@@ -203,14 +262,17 @@ async function main() {
 
     try {
       const inboxRef = doc(db, "owners", ownerAuthUid, "chats", convId);
-      await setDoc(
-        inboxRef,
-        {
-          updatedAt: serverTimestamp(),
-          preview: text.slice(0, 120),
-        },
-        { merge: true }
-      );
+      const fromProfile = (user.displayName || "").trim();
+      const fromChatInput = sanitizeDisplayName(el("chat-displayname").value);
+      const visitorName = fromProfile || fromChatInput;
+
+      const chatPayload = {
+        updatedAt: serverTimestamp(),
+        preview: text.slice(0, 120),
+      };
+      if (visitorName) chatPayload.visitorName = visitorName;
+
+      await setDoc(inboxRef, chatPayload, { merge: true });
 
       await addDoc(collection(db, "owners", ownerAuthUid, "chats", convId, "messages"), {
         text,
@@ -238,9 +300,10 @@ async function main() {
     if (!user) {
       detachMessages();
       showAuthPanel(true);
+      el("chat-displayname").value = "";
       el("status").className = "status";
       el("status").textContent =
-        "Đăng ký / đăng nhập email để lưu lịch sử; hoặc chat ẩn danh.";
+        "The North Face Chat — đăng ký / đăng nhập email; nhập tên để chủ trang nhận diện bạn.";
       el("send").disabled = true;
       el("input").disabled = true;
       return;
@@ -254,12 +317,24 @@ async function main() {
       return;
     }
 
+    const nameFromForm = sanitizeDisplayName(el("auth-displayname").value);
+    if (nameFromForm) {
+      try {
+        await persistVisitorName(user, nameFromForm);
+      } catch (e) {
+        el("status").className = "status error";
+        el("status").textContent = "Không lưu được tên từ form đăng nhập: " + e.message;
+      }
+    }
+
+    el("chat-displayname").value = (user.displayName || "").trim();
+
     showAuthPanel(false);
     el("send").disabled = false;
     el("input").disabled = false;
     el("status").className = "status";
     el("status").textContent =
-      "Đã kết nối. Bạn thấy toàn bộ tin nhắn với chủ trang (theo tài khoản này).";
+      "Đã kết nối. Bạn thấy toàn bộ tin nhắn với chủ trang (theo tài khoản này). Có thể sửa tên và bấm Lưu tên.";
     updateUserLabel(user);
     attachMessages(user);
   });

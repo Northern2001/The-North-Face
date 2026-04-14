@@ -20,6 +20,16 @@ service cloud.firestore {
         && request.resource.data.sender is string;
     }
 
+    function validChatDocCreate() {
+      let k = request.resource.data.keys();
+      return request.resource.data.preview is string
+        && (k.hasOnly(["updatedAt", "preview"])
+            || (k.hasOnly(["updatedAt", "preview", "visitorName"])
+                && request.resource.data.visitorName is string
+                && request.resource.data.visitorName.size() >= 1
+                && request.resource.data.visitorName.size() <= 80));
+    }
+
     // Đọc: chỉ dưới owners/<UID đã cấu hình>, và (đang đăng nhập đúng chủ HOẶC là khách của conv đó)
     function canReadChat(ownerUid, convId) {
       return request.auth != null
@@ -36,8 +46,7 @@ service cloud.firestore {
 
       allow create: if ownerUid == configuredOwnerUid()
         && isVisitorForConv(convId)
-        && request.resource.data.keys().hasAll(["updatedAt", "preview"])
-        && request.resource.data.preview is string;
+        && validChatDocCreate();
 
       allow update: if ownerUid == configuredOwnerUid()
         && (isOwnerSignedIn() || isVisitorForConv(convId));

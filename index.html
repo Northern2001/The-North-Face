@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Chat — Khách</title>
+    <title>The North Face Chat</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,7 +15,10 @@
   <body>
     <div class="app">
       <header class="app-header">
-        <h1>Trò chuyện với chủ trang</h1>
+        <div class="app-title-block">
+          <h1>The North Face Chat</h1>
+          <p class="app-sub">Trò chuyện với cửa hàng</p>
+        </div>
         <span class="badge" id="role-badge">Khách</span>
       </header>
       <p id="status" class="status"></p>
@@ -25,6 +28,13 @@
           Đăng ký hoặc đăng nhập bằng email để <strong>lưu lịch sử</strong> và xem tin chủ trang gửi mỗi khi bạn quay lại.
         </p>
         <div class="login-form visitor-auth-form">
+          <input
+            type="text"
+            id="auth-displayname"
+            autocomplete="nickname"
+            maxlength="80"
+            placeholder="Tên của bạn (hiển thị với chủ trang)"
+          />
           <input type="email" id="auth-email" autocomplete="email" placeholder="Email" />
           <input
             type="password"
@@ -45,7 +55,19 @@
 
       <div id="chat-panel" class="chat-panel" hidden>
         <div class="chat-panel-toolbar">
-          <span id="user-label" class="user-label"></span>
+          <div class="chat-toolbar-names">
+            <span id="user-label" class="user-label"></span>
+            <div class="name-row">
+              <input
+                type="text"
+                id="chat-displayname"
+                maxlength="80"
+                placeholder="Tên hiển thị"
+                aria-label="Tên hiển thị"
+              />
+              <button type="button" class="btn secondary btn-sm" id="btn-save-name">Lưu tên</button>
+            </div>
+          </div>
           <button type="button" class="btn secondary btn-sm" id="btn-signout">Đăng xuất</button>
         </div>
         <div id="messages" class="messages" aria-live="polite"></div>

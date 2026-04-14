@@ -92,12 +92,15 @@ function renderMessages(db, ownerUid, convId) {
   );
 }
 
-function selectConversation(db, ownerUid, convId, itemsEl) {
+function selectConversation(db, ownerUid, convId, itemsEl, chatMeta) {
   activeConvId = convId;
   itemsEl.querySelectorAll(".thread-item").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.conv === convId);
   });
-  el("active-label").textContent = "Khách: " + convId.slice(0, 10) + "…";
+  const vname = (chatMeta?.visitorName || "").trim();
+  el("active-label").textContent = vname
+    ? "Khách: " + vname
+    : "Khách: " + convId.slice(0, 10) + "…";
   el("composer-wrap").style.display = "flex";
   renderMessages(db, ownerUid, convId);
 }
@@ -134,9 +137,10 @@ function bindInbox(db, ownerUid) {
         btn.className = "thread-item";
         btn.dataset.conv = convId;
 
+        const vname = (data.visitorName || "").trim();
         const idLine = document.createElement("div");
         idLine.className = "thread-id";
-        idLine.textContent = convId;
+        idLine.textContent = vname || convId;
 
         const preview = document.createElement("div");
         preview.className = "thread-preview";
@@ -150,15 +154,16 @@ function bindInbox(db, ownerUid) {
         btn.appendChild(preview);
         btn.appendChild(timeLine);
         btn.addEventListener("click", () =>
-          selectConversation(db, ownerUid, convId, itemsEl)
+          selectConversation(db, ownerUid, convId, itemsEl, data)
         );
         itemsEl.appendChild(btn);
       });
 
       if (activeConvId && sorted.some((d) => d.id === activeConvId)) {
-        selectConversation(db, ownerUid, activeConvId, itemsEl);
+        const d = sorted.find((x) => x.id === activeConvId);
+        selectConversation(db, ownerUid, activeConvId, itemsEl, d?.data());
       } else if (sorted[0]) {
-        selectConversation(db, ownerUid, sorted[0].id, itemsEl);
+        selectConversation(db, ownerUid, sorted[0].id, itemsEl, sorted[0].data());
       }
     },
     (err) => {
