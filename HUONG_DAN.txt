@@ -24,16 +24,19 @@ CÀI ĐẶT FIREBASE (LÀM MỘT LẦN)
 
 4) Authentication > Users — chọn user owner, copy "User UID".
 
-5) Mở file firestore.rules trong repo, thay chuỗi YOUR_OWNER_FIREBASE_UID bằng
-   UID vừa copy (giữ dấu ngoặc kép).
+5) Mở file firestore.rules: trong hàm configuredOwnerUid(), đặt đúng chuỗi UID
+   owner (giữ dấu ngoặc kép).
 
 6) Firestore > Rules — dán toàn bộ nội dung file firestore.rules đã sửa > Publish.
 
 7) Project settings > General > Your apps — thêm Web app — copy object
    firebaseConfig.
 
-8) Trong máy bạn: sao chép js/firebase-config.example.js thành js/firebase-config.js
-   và điền các giá trị config (file firebase-config.js đã được .gitignore).
+8) Sao chép js/firebase-config.example.js thành js/firebase-config.js:
+   - Điền firebaseConfig.
+   - Thêm export const ownerAuthUid = "..." với CÙNG UID như bước 5 (khớp Rules).
+   (file firebase-config.js có thể đã .gitignore; trên GitHub Pages bạn vẫn cần
+   file này trong repo hoặc cách inject tương đương.)
 
 9) Đẩy code lên GitHub, bật GitHub Pages (branch/folder chứa index.html).
 
@@ -61,5 +64,8 @@ LỖI "Missing or insufficient permissions"
 4) Build > App Check: nếu bạn bật "Enforce" cho Firestore mà web chưa cấu hình
    App Check, mọi request sẽ bị từ chối — tắt enforce hoặc cấu hình App Check.
 
-5) Trang owner: UID trong rules phải trùng UID của user đang đăng nhập
-   (Authentication > Users).
+5) Trang owner: UID trong Rules và ownerAuthUid trong firebase-config.js phải
+   trùng UID của user đang đăng nhập (Authentication > Users).
+
+6) Dữ liệu chat nằm dưới owners/<UID chủ>/chats/<UID khách>/messages — không còn
+   dùng collection inbox ở gốc. Tin cũ trong inbox/ (nếu có) sẽ không hiện trên web mới.

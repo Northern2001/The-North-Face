@@ -18,7 +18,7 @@ export async function getFirebase() {
     throw err;
   }
 
-  const { firebaseConfig } = mod;
+  const { firebaseConfig, ownerAuthUid } = mod;
   if (
     !firebaseConfig?.apiKey ||
     firebaseConfig.apiKey.startsWith("YOUR_") ||
@@ -29,8 +29,18 @@ export async function getFirebase() {
     throw err;
   }
 
+  if (
+    !ownerAuthUid ||
+    typeof ownerAuthUid !== "string" ||
+    ownerAuthUid.startsWith("YOUR_")
+  ) {
+    const err = new Error("INVALID_OWNER_UID");
+    err.code = "INVALID_OWNER_UID";
+    throw err;
+  }
+
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-  return { app, auth, db };
+  return { app, auth, db, ownerAuthUid };
 }

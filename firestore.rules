@@ -3,16 +3,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function ownerUid() {
-      // Thay YOUR_OWNER_FIREBASE_UID bằng UID tài khoản owner (Auth > Users)
+    // Phải trùng UID tài khoản owner (Authentication > Users) và trùng ownerAuthUid trong js/firebase-config.js
+    function configuredOwnerUid() {
       return "yfjxrdfFVdeSoXBBFcFMk93sy0Q2";
     }
 
-    function isOwner() {
-      return request.auth != null && request.auth.uid == ownerUid();
+    function isThisSiteOwner(ownerUid) {
+      return ownerUid == configuredOwnerUid();
     }
 
-    function isVisitor(convId) {
+    function isOwnerSignedIn() {
+      return request.auth != null && request.auth.uid == configuredOwnerUid();
+    }
+
+    function isVisitorForConv(convId) {
       return request.auth != null && request.auth.uid == convId;
     }
 
@@ -25,22 +29,27 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp;
     }
 
-    match /inbox/{convId} {
-      allow read: if isOwner() || isVisitor(convId);
+    // Khách: owners/OWNER_UID/chats/KHACH_UID — owner chỉ query owners/OWNER_UID/chats (khớp query rules)
+    match /owners/{ownerUid}/chats/{convId} {
+      allow read: if isThisSiteOwner(ownerUid)
+        && (isOwnerSignedIn() || isVisitorForConv(convId));
 
-      allow create: if isVisitor(convId)
+      allow create: if isThisSiteOwner(ownerUid)
+        && isVisitorForConv(convId)
         && request.resource.data.keys().hasAll(["updatedAt", "preview"])
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.preview is string;
 
-      allow update: if isOwner() || isVisitor(convId);
+      allow update: if isThisSiteOwner(ownerUid)
+        && (isOwnerSignedIn() || isVisitorForConv(convId));
 
       match /messages/{msgId} {
-        allow read: if isOwner() || isVisitor(convId);
+        allow read: if isThisSiteOwner(ownerUid)
+          && (isOwnerSignedIn() || isVisitorForConv(convId));
 
-        allow create: if validMessage() && (
-          (isVisitor(convId) && request.resource.data.sender == "visitor")
-          || (isOwner() && request.resource.data.sender == "owner")
+        allow create: if isThisSiteOwner(ownerUid) && validMessage() && (
+          (isVisitorForConv(convId) && request.resource.data.sender == "visitor")
+          || (isOwnerSignedIn() && request.resource.data.sender == "owner")
         );
       }
     }

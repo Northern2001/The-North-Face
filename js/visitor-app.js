@@ -18,6 +18,9 @@ function showConfigError(code) {
   if (code === "MISSING_CONFIG") {
     el("status").textContent =
       "Thiếu js/firebase-config.js. Hãy sao chép từ firebase-config.example.js và điền thông tin Firebase.";
+  } else if (code === "INVALID_OWNER_UID") {
+    el("status").textContent =
+      "Thiếu ownerAuthUid trong firebase-config.js (UID chủ trang, trùng Firestore Rules). Xem firebase-config.example.js.";
   } else {
     el("status").textContent =
       "Chưa điền đúng firebaseConfig (vẫn còn YOUR_...). Mở js/firebase-config.js và dán config từ Firebase Console.";
@@ -41,8 +44,9 @@ async function main() {
   let auth;
   let db;
 
+  let ownerAuthUid;
   try {
-    ({ auth, db } = await getFirebase());
+    ({ auth, db, ownerAuthUid } = await getFirebase());
   } catch (e) {
     showConfigError(e.code);
     return;
@@ -67,7 +71,7 @@ async function main() {
   el("status").textContent = "Đã kết nối. Bạn chỉ thấy cuộc trò chuyện với chủ trang.";
 
   const convId = user.uid;
-  const msgsRef = collection(db, "inbox", convId, "messages");
+  const msgsRef = collection(db, "owners", ownerAuthUid, "chats", convId, "messages");
   const q = query(msgsRef, orderBy("createdAt", "asc"));
 
   onSnapshot(
@@ -109,7 +113,7 @@ async function main() {
     el("send").disabled = true;
 
     try {
-      const inboxRef = doc(db, "inbox", convId);
+      const inboxRef = doc(db, "owners", ownerAuthUid, "chats", convId);
       await setDoc(
         inboxRef,
         {
@@ -119,7 +123,7 @@ async function main() {
         { merge: true }
       );
 
-      await addDoc(collection(db, "inbox", convId, "messages"), {
+      await addDoc(collection(db, "owners", ownerAuthUid, "chats", convId, "messages"), {
         text,
         sender: "visitor",
         createdAt: serverTimestamp(),

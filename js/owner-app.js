@@ -26,6 +26,9 @@ function showConfigError(code) {
   if (code === "MISSING_CONFIG") {
     el("status").textContent =
       "Thiếu js/firebase-config.js. Sao chép từ firebase-config.example.js và điền config.";
+  } else if (code === "INVALID_OWNER_UID") {
+    el("status").textContent =
+      "Thiếu hoặc sai ownerAuthUid trong firebase-config.js (phải trùng UID trong Firestore Rules).";
   } else {
     el("status").textContent = "firebase-config.js chưa hợp lệ (còn YOUR_...).";
   }
@@ -49,12 +52,12 @@ function clearThreadListeners() {
   }
 }
 
-function renderMessages(db, convId) {
+function renderMessages(db, ownerUid, convId) {
   clearThreadListeners();
   const box = el("thread-messages");
   box.innerHTML = '<p class="empty-state">Đang tải…</p>';
 
-  const msgsRef = collection(db, "inbox", convId, "messages");
+  const msgsRef = collection(db, "owners", ownerUid, "chats", convId, "messages");
   const q = query(msgsRef, orderBy("createdAt", "asc"));
 
   unsubscribeMsgs = onSnapshot(
@@ -87,20 +90,23 @@ function renderMessages(db, convId) {
   );
 }
 
-function selectConversation(db, convId, itemsEl) {
+function selectConversation(db, ownerUid, convId, itemsEl) {
   activeConvId = convId;
   itemsEl.querySelectorAll(".thread-item").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.conv === convId);
   });
   el("active-label").textContent = "Khách: " + convId.slice(0, 10) + "…";
   el("composer-wrap").style.display = "flex";
-  renderMessages(db, convId);
+  renderMessages(db, ownerUid, convId);
 }
 
-function bindInbox(db) {
+function bindInbox(db, ownerUid) {
   if (unsubscribeInbox) unsubscribeInbox();
   const itemsEl = el("thread-items");
-  const inboxCol = query(collection(db, "inbox"), orderBy("updatedAt", "desc"));
+  const inboxCol = query(
+    collection(db, "owners", ownerUid, "chats"),
+    orderBy("updatedAt", "desc")
+  );
 
   unsubscribeInbox = onSnapshot(
     inboxCol,
@@ -138,19 +144,21 @@ function bindInbox(db) {
         btn.appendChild(idLine);
         btn.appendChild(preview);
         btn.appendChild(timeLine);
-        btn.addEventListener("click", () => selectConversation(db, convId, itemsEl));
+        btn.addEventListener("click", () =>
+          selectConversation(db, ownerUid, convId, itemsEl)
+        );
         itemsEl.appendChild(btn);
       });
 
       if (activeConvId && snap.docs.some((d) => d.id === activeConvId)) {
-        selectConversation(db, activeConvId, itemsEl);
+        selectConversation(db, ownerUid, activeConvId, itemsEl);
       } else if (snap.docs[0]) {
-        selectConversation(db, snap.docs[0].id, itemsEl);
+        selectConversation(db, ownerUid, snap.docs[0].id, itemsEl);
       }
     },
     (err) => {
       itemsEl.innerHTML =
-        '<p class="status error">Không đọc được inbox. Kiểm tra Firestore Rules và index: ' +
+        '<p class="status error">Không đọc được inbox. Kiểm tra Firestore Rules (Publish), ownerAuthUid trong firebase-config.js, và UID đăng nhập: ' +
         err.message +
         "</p>";
     }
@@ -160,9 +168,10 @@ function bindInbox(db) {
 async function main() {
   let auth;
   let db;
+  let ownerAuthUid;
 
   try {
-    ({ auth, db } = await getFirebase());
+    ({ auth, db, ownerAuthUid } = await getFirebase());
   } catch (e) {
     showConfigError(e.code);
     return;
@@ -190,12 +199,15 @@ async function main() {
     if (!text || !activeConvId) return;
     el("btn-send").disabled = true;
     try {
-      const inboxRef = doc(db, "inbox", activeConvId);
-      await addDoc(collection(db, "inbox", activeConvId, "messages"), {
-        text,
-        sender: "owner",
-        createdAt: serverTimestamp(),
-      });
+      const inboxRef = doc(db, "owners", ownerAuthUid, "chats", activeConvId);
+      await addDoc(
+        collection(db, "owners", ownerAuthUid, "chats", activeConvId, "messages"),
+        {
+          text,
+          sender: "owner",
+          createdAt: serverTimestamp(),
+        }
+      );
       await updateDoc(inboxRef, {
         updatedAt: serverTimestamp(),
         preview: text.slice(0, 120),
@@ -225,10 +237,21 @@ async function main() {
         el("status").textContent = "Phiên đăng nhập lỗi: " + e.message;
         return;
       }
+      if (user.uid !== ownerAuthUid) {
+        el("status").className = "status error";
+        el("status").textContent =
+          "UID đăng nhập (" +
+          user.uid +
+          ") khác ownerAuthUid trong firebase-config.js. Sửa config + Firestore Rules cho cùng một UID, hoặc đăng nhập đúng tài khoản chủ trang.";
+        await signOut(auth);
+        return;
+      }
+
       el("login-panel").style.display = "none";
       el("owner-ui").style.display = "flex";
-      el("status").textContent = "Đã đăng nhập: " + user.email;
-      bindInbox(db);
+      el("status").textContent =
+        "Đã đăng nhập: " + user.email + " · UID: " + user.uid;
+      bindInbox(db, user.uid);
     } else {
       if (unsubscribeInbox) {
         unsubscribeInbox();
