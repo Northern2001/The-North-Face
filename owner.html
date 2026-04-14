@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat — Hộp thư chủ trang</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+      .app.owner-app {
+        max-width: 1100px;
+      }
+      #owner-ui {
+        display: none;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        gap: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app owner-app">
+      <header class="app-header">
+        <h1>Hộp thư — chọn người để trả lời</h1>
+        <div style="display: flex; gap: 0.5rem; align-items: center">
+          <span class="badge">Chủ trang</span>
+          <button type="button" class="btn secondary" id="btn-logout" style="min-width: auto; padding: 0.4rem 0.75rem">
+            Đăng xuất
+          </button>
+        </div>
+      </header>
+
+      <p id="status" class="status"></p>
+
+      <div id="login-panel" class="panel">
+        <p>Đăng nhập bằng tài khoản Email/Password đã tạo trong Firebase (tài khoản owner).</p>
+        <div class="login-form">
+          <input type="email" id="email" autocomplete="username" placeholder="Email" />
+          <input type="password" id="password" autocomplete="current-password" placeholder="Mật khẩu" />
+          <button type="button" class="btn" id="btn-login">Đăng nhập</button>
+        </div>
+      </div>
+
+      <div id="owner-ui">
+        <div class="owner-layout">
+          <div class="thread-list">
+            <h2>Người đang nhắn</h2>
+            <div id="thread-items" class="thread-items"></div>
+          </div>
+          <div class="thread-list" style="display: flex; flex-direction: column">
+            <h2 id="active-label">Cuộc trò chuyện</h2>
+            <div id="thread-messages" class="messages" style="flex: 1; min-height: 220px"></div>
+            <div id="composer-wrap" class="composer" style="display: none; border-top: 1px solid var(--border)">
+              <textarea
+                id="reply"
+                rows="2"
+                maxlength="4000"
+                placeholder="Trả lời…"
+                aria-label="Trả lời khách"
+              ></textarea>
+              <button type="button" class="btn" id="btn-send">Gửi</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="js/owner-app.js"></script>
+  </body>
+</html>

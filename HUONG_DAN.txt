@@ -1,0 +1,50 @@
+CHAT TĨNH + GITHUB PAGES (KHÔNG SERVER RIÊNG CỦA BẠN)
+==================================================
+
+Trang web chỉ là file HTML/CSS/JS trên GitHub Pages. Tin nhắn thời gian thực
+được đồng bộ qua Firebase (Firestore + Authentication). Bạn không cần VPS hay
+Node backend; Firebase là dịch vụ miễn phí mức cơ bản.
+
+LUỒNG HOẠT ĐỘNG
+---------------
+- Khách mở index.html: đăng nhập ẩn danh, mỗi trình duyệt một UID. Họ chỉ thấy
+  và gửi tin trong đúng một cuộc trò chuyện (với bạn).
+- Bạn mở owner.html: đăng nhập email/mật khẩu (tài khoản owner). Bạn thấy danh
+  sách mọi khách đã từng nhắn, chọn một người để xem và trả lời.
+
+CÀI ĐẶT FIREBASE (LÀM MỘT LẦN)
+------------------------------
+1) Vào https://console.firebase.google.com — Tạo project.
+
+2) Build > Firestore Database — Tạo database (chế độ production). Chưa cần dữ liệu mẫu.
+
+3) Build > Authentication — Sign-in method:
+   - Bật "Anonymous" (cho khách trên index.html).
+   - Bật "Email/Password" — tạo một user là tài khoản của bạn (owner).
+
+4) Authentication > Users — chọn user owner, copy "User UID".
+
+5) Mở file firestore.rules trong repo, thay chuỗi YOUR_OWNER_FIREBASE_UID bằng
+   UID vừa copy (giữ dấu ngoặc kép).
+
+6) Firestore > Rules — dán toàn bộ nội dung file firestore.rules đã sửa > Publish.
+
+7) Project settings > General > Your apps — thêm Web app — copy object
+   firebaseConfig.
+
+8) Trong máy bạn: sao chép js/firebase-config.example.js thành js/firebase-config.js
+   và điền các giá trị config (file firebase-config.js đã được .gitignore).
+
+9) Đẩy code lên GitHub, bật GitHub Pages (branch/folder chứa index.html).
+
+10) Mở URL Pages của bạn:
+    - Gửi cho mọi người: .../index.html (hoặc trang gốc nếu bạn đặt index làm chủ).
+    - Chỉ bạn giữ link: .../owner.html
+
+LƯU Ý
+-----
+- apiKey trong firebase-config là cấu hình client công khai; an toàn nếu Rules
+  Firestore đúng như trong file firestore.rules.
+- Nếu lỗi khi gửi tin, kiểm tra Rules đã Publish và UID owner đã thay đúng.
+- Nếu owner không thấy danh sách inbox, mở Console trình duyệt: có thể cần tạo
+  index — Firebase thường in link "Create index" trong lỗi.
