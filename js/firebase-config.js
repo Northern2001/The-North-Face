@@ -12,3 +12,5 @@ export const firebaseConfig = {
   measurementId: "G-59TMX51E12"
 };
 
+/** Trùng UID trong Firestore Rules (hàm configuredOwnerUid). */
+export const ownerAuthUid = "yfjxrdfFVdeSoXBBFcFMk93sy0Q2";

@@ -8,8 +8,6 @@ import {
   collection,
   doc,
   addDoc,
-  query,
-  orderBy,
   onSnapshot,
   serverTimestamp,
   updateDoc,
@@ -58,17 +56,21 @@ function renderMessages(db, ownerUid, convId) {
   box.innerHTML = '<p class="empty-state">Đang tải…</p>';
 
   const msgsRef = collection(db, "owners", ownerUid, "chats", convId, "messages");
-  const q = query(msgsRef, orderBy("createdAt", "asc"));
 
   unsubscribeMsgs = onSnapshot(
-    q,
+    msgsRef,
     (snap) => {
       box.innerHTML = "";
       if (snap.empty) {
         box.innerHTML = '<p class="empty-state">Chưa có tin nhắn.</p>';
         return;
       }
-      snap.forEach((d) => {
+      const sorted = snap.docs.slice().sort((a, b) => {
+        const ta = a.data().createdAt?.toDate?.()?.getTime?.() ?? 0;
+        const tb = b.data().createdAt?.toDate?.()?.getTime?.() ?? 0;
+        return ta - tb;
+      });
+      sorted.forEach((d) => {
         const m = d.data();
         const div = document.createElement("div");
         const side = m.sender === "owner" ? "owner" : "visitor";
@@ -103,10 +105,7 @@ function selectConversation(db, ownerUid, convId, itemsEl) {
 function bindInbox(db, ownerUid) {
   if (unsubscribeInbox) unsubscribeInbox();
   const itemsEl = el("thread-items");
-  const inboxCol = query(
-    collection(db, "owners", ownerUid, "chats"),
-    orderBy("updatedAt", "desc")
-  );
+  const inboxCol = collection(db, "owners", ownerUid, "chats");
 
   unsubscribeInbox = onSnapshot(
     inboxCol,
@@ -121,7 +120,13 @@ function bindInbox(db, ownerUid) {
         return;
       }
 
-      snap.forEach((d) => {
+      const sorted = snap.docs.slice().sort((a, b) => {
+        const ta = a.data().updatedAt?.toDate?.()?.getTime?.() ?? 0;
+        const tb = b.data().updatedAt?.toDate?.()?.getTime?.() ?? 0;
+        return tb - ta;
+      });
+
+      sorted.forEach((d) => {
         const convId = d.id;
         const data = d.data();
         const btn = document.createElement("button");
@@ -150,10 +155,10 @@ function bindInbox(db, ownerUid) {
         itemsEl.appendChild(btn);
       });
 
-      if (activeConvId && snap.docs.some((d) => d.id === activeConvId)) {
+      if (activeConvId && sorted.some((d) => d.id === activeConvId)) {
         selectConversation(db, ownerUid, activeConvId, itemsEl);
-      } else if (snap.docs[0]) {
-        selectConversation(db, ownerUid, snap.docs[0].id, itemsEl);
+      } else if (sorted[0]) {
+        selectConversation(db, ownerUid, sorted[0].id, itemsEl);
       }
     },
     (err) => {

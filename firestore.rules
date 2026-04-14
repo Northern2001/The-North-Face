@@ -3,17 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Phải trùng UID tài khoản owner (Authentication > Users) và trùng ownerAuthUid trong js/firebase-config.js
+    // Trùng UID chủ trang (Auth) và ownerAuthUid trong js/firebase-config.js
     function configuredOwnerUid() {
       return "yfjxrdfFVdeSoXBBFcFMk93sy0Q2";
-    }
-
-    function isThisSiteOwner(ownerUid) {
-      return ownerUid == configuredOwnerUid();
-    }
-
-    function isOwnerSignedIn() {
-      return request.auth != null && request.auth.uid == configuredOwnerUid();
     }
 
     function isVisitorForConv(convId) {
@@ -25,29 +17,35 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 4000
-        && request.resource.data.sender is string
-        && request.resource.data.createdAt is timestamp;
+        && request.resource.data.sender is string;
     }
 
-    // Khách: owners/OWNER_UID/chats/KHACH_UID — owner chỉ query owners/OWNER_UID/chats (khớp query rules)
-    match /owners/{ownerUid}/chats/{convId} {
-      allow read: if isThisSiteOwner(ownerUid)
-        && (isOwnerSignedIn() || isVisitorForConv(convId));
+    // Đọc: chỉ dưới owners/<UID đã cấu hình>, và (đang đăng nhập đúng chủ HOẶC là khách của conv đó)
+    function canReadChat(ownerUid, convId) {
+      return request.auth != null
+        && ownerUid == configuredOwnerUid()
+        && (request.auth.uid == ownerUid || request.auth.uid == convId);
+    }
 
-      allow create: if isThisSiteOwner(ownerUid)
+    function isOwnerSignedIn() {
+      return request.auth != null && request.auth.uid == configuredOwnerUid();
+    }
+
+    match /owners/{ownerUid}/chats/{convId} {
+      allow read: if canReadChat(ownerUid, convId);
+
+      allow create: if ownerUid == configuredOwnerUid()
         && isVisitorForConv(convId)
         && request.resource.data.keys().hasAll(["updatedAt", "preview"])
-        && request.resource.data.updatedAt is timestamp
         && request.resource.data.preview is string;
 
-      allow update: if isThisSiteOwner(ownerUid)
+      allow update: if ownerUid == configuredOwnerUid()
         && (isOwnerSignedIn() || isVisitorForConv(convId));
 
       match /messages/{msgId} {
-        allow read: if isThisSiteOwner(ownerUid)
-          && (isOwnerSignedIn() || isVisitorForConv(convId));
+        allow read: if canReadChat(ownerUid, convId);
 
-        allow create: if isThisSiteOwner(ownerUid) && validMessage() && (
+        allow create: if ownerUid == configuredOwnerUid() && validMessage() && (
           (isVisitorForConv(convId) && request.resource.data.sender == "visitor")
           || (isOwnerSignedIn() && request.resource.data.sender == "owner")
         );

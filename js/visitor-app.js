@@ -5,8 +5,6 @@ import {
   doc,
   setDoc,
   addDoc,
-  query,
-  orderBy,
   onSnapshot,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
@@ -72,10 +70,9 @@ async function main() {
 
   const convId = user.uid;
   const msgsRef = collection(db, "owners", ownerAuthUid, "chats", convId, "messages");
-  const q = query(msgsRef, orderBy("createdAt", "asc"));
 
   onSnapshot(
-    q,
+    msgsRef,
     (snap) => {
       const box = el("messages");
       box.innerHTML = "";
@@ -84,7 +81,12 @@ async function main() {
           '<p class="empty-state">Chưa có tin nhắn. Hãy gửi lời chào — chủ trang sẽ thấy trong hộp thư.</p>';
         return;
       }
-      snap.forEach((d) => {
+      const sorted = snap.docs.slice().sort((a, b) => {
+        const ta = a.data().createdAt?.toDate?.()?.getTime?.() ?? 0;
+        const tb = b.data().createdAt?.toDate?.()?.getTime?.() ?? 0;
+        return ta - tb;
+      });
+      sorted.forEach((d) => {
         const m = d.data();
         const div = document.createElement("div");
         const side = m.sender === "owner" ? "owner" : "visitor";
