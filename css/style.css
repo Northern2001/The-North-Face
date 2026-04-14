@@ -275,3 +275,74 @@ button.btn.secondary {
   padding: 1rem;
   text-align: center;
 }
+
+.visitor-auth-lead {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.visitor-auth-lead strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.visitor-auth-form {
+  max-width: 360px;
+}
+
+.visitor-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.btn-sm {
+  min-width: auto;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.btn-linkish {
+  margin-top: 0.35rem;
+  padding: 0.4rem 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-align: left;
+}
+
+.btn-linkish:hover {
+  color: var(--text);
+}
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.chat-panel[hidden] {
+  display: none !important;
+}
+
+.chat-panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.user-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

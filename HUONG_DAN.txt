@@ -19,8 +19,10 @@ CÀI ĐẶT FIREBASE (LÀM MỘT LẦN)
 2) Build > Firestore Database — Tạo database (chế độ production). Chưa cần dữ liệu mẫu.
 
 3) Build > Authentication — Sign-in method:
-   - Bật "Anonymous" (cho khách trên index.html).
-   - Bật "Email/Password" — tạo một user là tài khoản của bạn (owner).
+   - Bật "Anonymous" (tùy chọn "chat nhanh" trên index.html).
+   - Bật "Email/Password" — dùng cho tài khoản owner và cho khách đăng ký/đăng nhập.
+   - Authentication > Settings > Authorized domains: thêm domain GitHub Pages
+     (ví dụ northern2001.github.io) nếu đăng ký/đăng nhập khách báo lỗi domain.
 
 4) Authentication > Users — chọn user owner, copy "User UID".
 

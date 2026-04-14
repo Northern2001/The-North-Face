@@ -16,19 +16,49 @@
     <div class="app">
       <header class="app-header">
         <h1>Trò chuyện với chủ trang</h1>
-        <span class="badge">Khách</span>
+        <span class="badge" id="role-badge">Khách</span>
       </header>
       <p id="status" class="status"></p>
-      <div id="messages" class="messages" aria-live="polite"></div>
-      <div class="composer">
-        <textarea
-          id="input"
-          rows="2"
-          maxlength="4000"
-          placeholder="Nhập tin nhắn… (Enter gửi, Shift+Enter xuống dòng)"
-          aria-label="Nội dung tin nhắn"
-        ></textarea>
-        <button type="button" class="btn" id="send">Gửi</button>
+
+      <div id="auth-panel" class="panel visitor-auth">
+        <p class="visitor-auth-lead">
+          Đăng ký hoặc đăng nhập bằng email để <strong>lưu lịch sử</strong> và xem tin chủ trang gửi mỗi khi bạn quay lại.
+        </p>
+        <div class="login-form visitor-auth-form">
+          <input type="email" id="auth-email" autocomplete="email" placeholder="Email" />
+          <input
+            type="password"
+            id="auth-password"
+            autocomplete="current-password"
+            placeholder="Mật khẩu (tối thiểu 6 ký tự)"
+            minlength="6"
+          />
+          <div class="visitor-auth-actions">
+            <button type="button" class="btn" id="btn-signup">Tạo tài khoản</button>
+            <button type="button" class="btn secondary" id="btn-signin">Đăng nhập</button>
+          </div>
+          <button type="button" class="btn-linkish" id="btn-anon">
+            Tiếp tục không tài khoản (ẩn danh — lịch sử theo trình duyệt)
+          </button>
+        </div>
+      </div>
+
+      <div id="chat-panel" class="chat-panel" hidden>
+        <div class="chat-panel-toolbar">
+          <span id="user-label" class="user-label"></span>
+          <button type="button" class="btn secondary btn-sm" id="btn-signout">Đăng xuất</button>
+        </div>
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <div class="composer">
+          <textarea
+            id="input"
+            rows="2"
+            maxlength="4000"
+            placeholder="Nhập tin nhắn… (Enter gửi, Shift+Enter xuống dòng)"
+            aria-label="Nội dung tin nhắn"
+          ></textarea>
+          <button type="button" class="btn" id="send">Gửi</button>
+        </div>
       </div>
     </div>
     <script type="module" src="js/visitor-app.js"></script>

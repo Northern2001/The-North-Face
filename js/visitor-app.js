@@ -1,5 +1,11 @@
 import { getFirebase } from "./firebase-client.js";
-import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInAnonymously,
+  signOut,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   collection,
   doc,
@@ -10,6 +16,11 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const el = (id) => document.getElementById(id);
+
+let auth;
+let db;
+let ownerAuthUid;
+let unsubMsgs = null;
 
 function showConfigError(code) {
   el("status").className = "status error";
@@ -23,8 +34,8 @@ function showConfigError(code) {
     el("status").textContent =
       "Chưa điền đúng firebaseConfig (vẫn còn YOUR_...). Mở js/firebase-config.js và dán config từ Firebase Console.";
   }
-  el("send").disabled = true;
-  el("input").disabled = true;
+  el("auth-panel").hidden = true;
+  el("chat-panel").hidden = true;
 }
 
 function formatTime(ts) {
@@ -38,11 +49,70 @@ function formatTime(ts) {
   });
 }
 
-async function main() {
-  let auth;
-  let db;
+function showAuthPanel(show) {
+  el("auth-panel").hidden = !show;
+  el("chat-panel").hidden = show;
+}
 
-  let ownerAuthUid;
+function detachMessages() {
+  if (unsubMsgs) {
+    unsubMsgs();
+    unsubMsgs = null;
+  }
+}
+
+function renderMessageList(snap) {
+  const box = el("messages");
+  box.innerHTML = "";
+  if (snap.empty) {
+    box.innerHTML =
+      '<p class="empty-state">Chưa có tin nhắn. Gửi lời chào — chủ trang sẽ thấy trong hộp thư.</p>';
+    return;
+  }
+  const sorted = snap.docs.slice().sort((a, b) => {
+    const ta = a.data().createdAt?.toDate?.()?.getTime?.() ?? 0;
+    const tb = b.data().createdAt?.toDate?.()?.getTime?.() ?? 0;
+    return ta - tb;
+  });
+  sorted.forEach((d) => {
+    const m = d.data();
+    const sender = m.sender === "owner" ? "owner" : "visitor";
+    const div = document.createElement("div");
+    div.className = `msg ${sender}`;
+    div.textContent = m.text || "";
+    const meta = document.createElement("div");
+    meta.className = "msg-meta";
+    const who = sender === "owner" ? "Chủ trang" : "Bạn";
+    meta.textContent = who + " · " + (formatTime(m.createdAt) || "—");
+    div.appendChild(meta);
+    box.appendChild(div);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+function attachMessages(user) {
+  detachMessages();
+  const convId = user.uid;
+  const msgsRef = collection(db, "owners", ownerAuthUid, "chats", convId, "messages");
+  unsubMsgs = onSnapshot(
+    msgsRef,
+    (snap) => renderMessageList(snap),
+    (err) => {
+      el("status").className = "status error";
+      el("status").textContent = "Lỗi tải tin nhắn: " + err.message;
+    }
+  );
+}
+
+function updateUserLabel(user) {
+  const anon = user.isAnonymous;
+  el("user-label").textContent = anon
+    ? "Ẩn danh — lịch sử có thể mất nếu xóa dữ liệu trình duyệt"
+    : (user.email || "Tài khoản") + " — lịch sử được lưu theo tài khoản";
+  el("role-badge").textContent = anon ? "Ẩn danh" : "Đã đăng nhập";
+}
+
+async function main() {
   try {
     ({ auth, db, ownerAuthUid } = await getFirebase());
   } catch (e) {
@@ -50,61 +120,78 @@ async function main() {
     return;
   }
 
-  el("status").textContent = "Đang kết nối…";
+  showAuthPanel(true);
+  el("status").className = "status";
+  el("status").textContent =
+    "Đăng ký / đăng nhập email để lưu lịch sử; hoặc chat ẩn danh (mỗi trình duyệt một hội thoại riêng).";
+  el("send").disabled = true;
+  el("input").disabled = true;
 
-  let user;
-  try {
-    const cred = await signInAnonymously(auth);
-    user = cred.user;
-    await user.getIdToken();
-  } catch (e) {
-    el("status").className = "status error";
-    el("status").textContent =
-      "Không đăng nhập ẩn danh được. Trong Firebase Console, bật Authentication > Sign-in method > Anonymous.";
-    el("send").disabled = true;
-    el("input").disabled = true;
-    return;
-  }
-
-  el("status").textContent = "Đã kết nối. Bạn chỉ thấy cuộc trò chuyện với chủ trang.";
-
-  const convId = user.uid;
-  const msgsRef = collection(db, "owners", ownerAuthUid, "chats", convId, "messages");
-
-  onSnapshot(
-    msgsRef,
-    (snap) => {
-      const box = el("messages");
-      box.innerHTML = "";
-      if (snap.empty) {
-        box.innerHTML =
-          '<p class="empty-state">Chưa có tin nhắn. Hãy gửi lời chào — chủ trang sẽ thấy trong hộp thư.</p>';
-        return;
-      }
-      const sorted = snap.docs.slice().sort((a, b) => {
-        const ta = a.data().createdAt?.toDate?.()?.getTime?.() ?? 0;
-        const tb = b.data().createdAt?.toDate?.()?.getTime?.() ?? 0;
-        return ta - tb;
-      });
-      sorted.forEach((d) => {
-        const m = d.data();
-        const div = document.createElement("div");
-        const side = m.sender === "owner" ? "owner" : "visitor";
-        div.className = `msg ${side}`;
-        div.textContent = m.text || "";
-        const meta = document.createElement("div");
-        meta.className = "msg-meta";
-        meta.textContent = formatTime(m.createdAt);
-        div.appendChild(meta);
-        box.appendChild(div);
-      });
-      box.scrollTop = box.scrollHeight;
-    },
-    (err) => {
-      el("status").className = "status error";
-      el("status").textContent = "Lỗi tải tin nhắn: " + err.message;
+  const setAuthBusy = (busy, msg) => {
+    el("btn-signup").disabled = busy;
+    el("btn-signin").disabled = busy;
+    el("btn-anon").disabled = busy;
+    el("auth-email").disabled = busy;
+    el("auth-password").disabled = busy;
+    if (msg != null) {
+      el("status").className = busy ? "status" : el("status").className;
+      el("status").textContent = msg;
     }
-  );
+  };
+
+  const authErr = (e) => {
+    el("status").className = "status error";
+    el("status").textContent = e.message || String(e);
+  };
+
+  el("btn-signup").addEventListener("click", async () => {
+    const email = el("auth-email").value.trim();
+    const password = el("auth-password").value;
+    if (!email || password.length < 6) {
+      authErr(new Error("Nhập email và mật khẩu ít nhất 6 ký tự."));
+      return;
+    }
+    setAuthBusy(true, "Đang tạo tài khoản…");
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (e) {
+      authErr(e);
+    } finally {
+      setAuthBusy(false);
+    }
+  });
+
+  el("btn-signin").addEventListener("click", async () => {
+    const email = el("auth-email").value.trim();
+    const password = el("auth-password").value;
+    if (!email || !password) {
+      authErr(new Error("Nhập email và mật khẩu."));
+      return;
+    }
+    setAuthBusy(true, "Đang đăng nhập…");
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (e) {
+      authErr(e);
+    } finally {
+      setAuthBusy(false);
+    }
+  });
+
+  el("btn-anon").addEventListener("click", async () => {
+    setAuthBusy(true, "Đang vào chế độ ẩn danh…");
+    try {
+      await signInAnonymously(auth);
+    } catch (e) {
+      authErr(e);
+      el("status").textContent +=
+        " — Trong Firebase Console, bật Authentication > Sign-in method > Anonymous.";
+    } finally {
+      setAuthBusy(false);
+    }
+  });
+
+  el("btn-signout").addEventListener("click", () => signOut(auth));
 
   el("send").addEventListener("click", async () => {
     const text = el("input").value.trim();
@@ -145,6 +232,36 @@ async function main() {
       e.preventDefault();
       el("send").click();
     }
+  });
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      detachMessages();
+      showAuthPanel(true);
+      el("status").className = "status";
+      el("status").textContent =
+        "Đăng ký / đăng nhập email để lưu lịch sử; hoặc chat ẩn danh.";
+      el("send").disabled = true;
+      el("input").disabled = true;
+      return;
+    }
+
+    try {
+      await user.getIdToken();
+    } catch (e) {
+      el("status").className = "status error";
+      el("status").textContent = "Phiên đăng nhập lỗi: " + e.message;
+      return;
+    }
+
+    showAuthPanel(false);
+    el("send").disabled = false;
+    el("input").disabled = false;
+    el("status").className = "status";
+    el("status").textContent =
+      "Đã kết nối. Bạn thấy toàn bộ tin nhắn với chủ trang (theo tài khoản này).";
+    updateUserLabel(user);
+    attachMessages(user);
   });
 }
 
