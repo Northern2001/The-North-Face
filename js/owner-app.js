@@ -216,8 +216,15 @@ async function main() {
     }
   });
 
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
+      try {
+        await user.getIdToken();
+      } catch (e) {
+        el("status").className = "status error";
+        el("status").textContent = "Phiên đăng nhập lỗi: " + e.message;
+        return;
+      }
       el("login-panel").style.display = "none";
       el("owner-ui").style.display = "flex";
       el("status").textContent = "Đã đăng nhập: " + user.email;

@@ -48,3 +48,18 @@ LƯU Ý
 - Nếu lỗi khi gửi tin, kiểm tra Rules đã Publish và UID owner đã thay đúng.
 - Nếu owner không thấy danh sách inbox, mở Console trình duyệt: có thể cần tạo
   index — Firebase thường in link "Create index" trong lỗi.
+
+LỖI "Missing or insufficient permissions"
+------------------------------------------
+1) Firestore > Rules: phải DÁN rules từ file firestore.rules (đã sửa UID owner)
+   và bấm Publish. Sửa file trong Git KHÔNG tự áp dụng lên Firebase.
+
+2) firebase-config.js phải cùng đúng project với Rules vừa publish.
+
+3) Authentication: bật Anonymous (khách) và Email/Password (owner).
+
+4) Build > App Check: nếu bạn bật "Enforce" cho Firestore mà web chưa cấu hình
+   App Check, mọi request sẽ bị từ chối — tắt enforce hoặc cấu hình App Check.
+
+5) Trang owner: UID trong rules phải trùng UID của user đang đăng nhập
+   (Authentication > Users).

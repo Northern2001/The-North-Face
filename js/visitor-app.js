@@ -1,8 +1,5 @@
 import { getFirebase } from "./firebase-client.js";
-import {
-  signInAnonymously,
-  onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   collection,
   doc,
@@ -53,46 +50,11 @@ async function main() {
 
   el("status").textContent = "Đang kết nối…";
 
-  onAuthStateChanged(auth, (user) => {
-    if (!user) return;
-    el("status").textContent = "Đã kết nối. Bạn chỉ thấy cuộc trò chuyện với chủ trang.";
-    const convId = user.uid;
-    const msgsRef = collection(db, "inbox", convId, "messages");
-    const q = query(msgsRef, orderBy("createdAt", "asc"));
-
-    onSnapshot(
-      q,
-      (snap) => {
-        const box = el("messages");
-        box.innerHTML = "";
-        if (snap.empty) {
-          box.innerHTML =
-            '<p class="empty-state">Chưa có tin nhắn. Hãy gửi lời chào — chủ trang sẽ thấy trong hộp thư.</p>';
-          return;
-        }
-        snap.forEach((d) => {
-          const m = d.data();
-          const div = document.createElement("div");
-          const side = m.sender === "owner" ? "owner" : "visitor";
-          div.className = `msg ${side}`;
-          div.textContent = m.text || "";
-          const meta = document.createElement("div");
-          meta.className = "msg-meta";
-          meta.textContent = formatTime(m.createdAt);
-          div.appendChild(meta);
-          box.appendChild(div);
-        });
-        box.scrollTop = box.scrollHeight;
-      },
-      (err) => {
-        el("status").className = "status error";
-        el("status").textContent = "Lỗi tải tin nhắn: " + err.message;
-      }
-    );
-  });
-
+  let user;
   try {
-    await signInAnonymously(auth);
+    const cred = await signInAnonymously(auth);
+    user = cred.user;
+    await user.getIdToken();
   } catch (e) {
     el("status").className = "status error";
     el("status").textContent =
@@ -101,6 +63,42 @@ async function main() {
     el("input").disabled = true;
     return;
   }
+
+  el("status").textContent = "Đã kết nối. Bạn chỉ thấy cuộc trò chuyện với chủ trang.";
+
+  const convId = user.uid;
+  const msgsRef = collection(db, "inbox", convId, "messages");
+  const q = query(msgsRef, orderBy("createdAt", "asc"));
+
+  onSnapshot(
+    q,
+    (snap) => {
+      const box = el("messages");
+      box.innerHTML = "";
+      if (snap.empty) {
+        box.innerHTML =
+          '<p class="empty-state">Chưa có tin nhắn. Hãy gửi lời chào — chủ trang sẽ thấy trong hộp thư.</p>';
+        return;
+      }
+      snap.forEach((d) => {
+        const m = d.data();
+        const div = document.createElement("div");
+        const side = m.sender === "owner" ? "owner" : "visitor";
+        div.className = `msg ${side}`;
+        div.textContent = m.text || "";
+        const meta = document.createElement("div");
+        meta.className = "msg-meta";
+        meta.textContent = formatTime(m.createdAt);
+        div.appendChild(meta);
+        box.appendChild(div);
+      });
+      box.scrollTop = box.scrollHeight;
+    },
+    (err) => {
+      el("status").className = "status error";
+      el("status").textContent = "Lỗi tải tin nhắn: " + err.message;
+    }
+  );
 
   el("send").addEventListener("click", async () => {
     const text = el("input").value.trim();
